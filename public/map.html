@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mappa Dinamica del Nord Italia</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+            overflow: hidden;
+            touch-action: none; 
+        }
+        
+        #map-container {
+            position: relative;
+            width: 100vw;
+            height: 100dvh;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            padding: 15px;
+            width: 320px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        
+        #controls.collapsed {
+            transform: translateX(-340px);
+        }
+        
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .control-header h2 {
+            font-size: 1.1rem;
+            color: #2c3e50;
+        }
+
+        .user-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ecf0f1;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+        
+        #close-controls {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #7f8c8d;
+            padding: 5px;
+        }
+        
+        #close-controls:hover {
+            color: #e74c3c;
+        }
+        
+        #search-province {
+            width: 100%;
+            padding: 8px 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .province-group {
+            margin-bottom: 15px;
+        }
+        
+        .group-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+        
+        .group-header:hover {
+            background-color: #e9ecef;
+        }
+        
+        .group-name {
+            font-weight: 600;
+            color: #2c3e50;
+            flex-grow: 1;
+        }
+        
+        .toggle-icon {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-right: 5px;
+        }
+        
+        .province-list {
+            margin-left: 20px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .province-list.expanded {
+            max-height: 2000px;
+        }
+        
+        .province-item {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        
+        .province-item:hover {
+            background-color: #f1f2f6;
+        }
+        
+        .province-checkbox {
+            margin-right: 8px;
+        }
+        
+        .province-label {
+            flex-grow: 1;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .color-picker {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-left: 5px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+        }
+        
+        .color-picker.active {
+            border: 2px solid #2c3e50;
+        }
+        
+        .municipality-controls {
+            margin-top: 5px;
+            width: 100%;
+            padding-left: 25px;
+            display: none;
+        }
+        
+        .municipality-controls.expanded {
+            display: block;
+        }
+        
+        .municipality-color-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        
+        .municipality-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 1px solid #ddd;
+        }
+        
+        .municipality-color.active {
+            border: 2px solid #2c3e50;
+            transform: scale(1.1);
+        }
+        
+        #zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #2c3e50;
+        }
+        
+        .zoom-btn:hover {
+            background: #f8f9fa;
+        }
+        
+        .zoom-btn:first-child {
+            border-bottom: 1px solid #eee;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .zoom-btn:last-child {
+            border-radius: 0 0 8px 8px;
+        }
+        
+        #toggle-controls {
+            position: absolute;
+            top: 10px;
+            left: 8px;
+            z-index: 999;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            width: 40px;
+            height: 70px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            cursor: pointer;
+            font-size: 1.8rem; 
+            color: #2c3e50;
+            display: none;
+        }
+        
+        #toggle-controls:hover {
+            background: #f8f9fa;
+        }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 1.2rem;
+            color: #7f8c8d;
+        }
+        
+        .notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            z-index: 2000;
+            display: none;
+        }
+        
+        .municipality-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #2c3e50;
+            background: rgba(255,255,255,0.9);
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+        }
+
+        .current-color-indicator {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 5px;
+            text-align: center;
+        }
+        .btn-panel {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .btn {
+            background: #3498db;
+            border: none;
+            padding: 6px 10px;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .btn.small { padding: 4px 6px; }
+        .btn.warning { background: #e74c3c; }
+        .btn.secondary { background: #7f8c8d; }
+        
+        #add-note-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            width: auto;
+            min-width: 80px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            cursor: pointer;
+            font-size: 1rem;
+            color: #2c3e50;
+            padding: 0 15px;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .note-icon {
+            font-size: 1.2rem;
+        }
+
+        .note-text {
+            font-size: 0.9rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        #add-note-btn:hover {
+            background: #f8f9fa;
+        }
+
+        #add-note-btn.active {
+            background: #3498db !important;
+            color: white !important;
+        }
+
+        #screenshot-btn {
+            position: absolute;
+            bottom: 70px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            width: auto;
+            min-width: 100px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            cursor: pointer;
+            font-size: 1rem;
+            color: #2c3e50;
+            padding: 0 15px;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        #screenshot-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .screenshot-icon {
+            font-size: 1.2rem;
+        }
+
+        .screenshot-text {
+            font-size: 0.9rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        #show-borders-btn {
+            position: absolute; 
+            bottom: 120px; 
+            right: 10px; 
+            z-index: 1000; 
+            background: white; 
+            border: none; 
+            padding: 10px; 
+            border-radius: 50%; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2); 
+            cursor: pointer; 
+            width: 40px; 
+            height: 40px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        #show-borders-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .note-editor {
+            position: absolute;
+            z-index: 2000;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            padding: 15px;
+            min-width: 250px;
+            display: none;
+        }
+
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .note-title {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+        .close-note {
+            background: none;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            color: #7f8c8d;
+            padding: 2px;
+        }
+
+        .close-note:hover {
+            color: #e74c3c;
+        }
+
+        .note-textarea {
+            width: 100%;
+            height: 80px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .emoji-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .emoji-btn {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all 0.2s;
+        }
+
+        .emoji-btn:hover {
+            background: #e9ecef;
+            transform: scale(1.1);
+        }
+
+        .note-final {
+            position: absolute;
+            z-index: 1500;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            padding: 12px;
+            max-width: 200px;
+            cursor: move;
+            border-left: 4px solid #3498db;
+            user-select: none;
+        }
+
+        .note-content {
+            font-size: 0.9rem;
+            color: #2c3e50;
+            word-wrap: break-word;
+            pointer-events: none;
+        }
+
+        .note-final .close-note {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 0.8rem;
+        }
+        
+        @media (max-width: 768px) {
+            #controls {
+                width: 100%;
+                height: 100vh;
+                max-height: 100vh;
+                top: 0;
+                left: 0;
+                border-radius: 0;
+                transform: translateX(0);
+                z-index: 1100;
+            }
+            
+            #controls.collapsed {
+                transform: translateX(-100%);
+            }
+            
+            #toggle-controls {
+                display: flex;
+            }
+            
+            .note-text, .screenshot-text {
+                display: none;
+            }
+            
+            #add-note-btn, #screenshot-btn, #show-borders-btn {
+                min-width: 45px;
+                width: 45px;
+                height: 45px;
+                padding: 0;
+                border-radius: 50%;
+                justify-content: center;
+                right: 10px;
+            }
+            
+            #add-note-btn { bottom: 40px; }
+            #screenshot-btn { bottom: 95px; }
+            #show-borders-btn { bottom: 150px; }
+            
+            #note-editor {
+                width: 90%;
+                left: 5% !important;
+                top: 20% !important;
+            }
+        }
+        
+        @media print {
+            #controls, #zoom-controls, #add-note-btn, 
+            #screenshot-btn, #show-borders-btn, #toggle-controls, .leaflet-control-container,
+            .notification {
+                display: none !important;
+            }
+            
+            #map-container, #map {
+                width: 100% !important;
+                height: 100vh !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+            }
+            
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="map-container">
+        <div id="map">
+            <div class="loading">Caricamento mappa...</div>
+        </div>
+        
+        <button id="toggle-controls">☰</button>
+        
+        <div id="controls">
+            <div class="user-bar">
+                <span>Utente: <strong id="username-display">...</strong></span>
+                <button class="logout-btn" id="logout-btn">Esci</button>
+            </div>
+
+            <div class="control-header">
+                <h2>Seleziona Province</h2>
+                <button id="close-controls">✕</button>
+            </div>
+            
+            <div class="btn-panel">
+                <button id="clearAll" class="btn small warning">Deseleziona tutte</button>
+            </div>
+
+            <div class="btn-panel">
+                <button id="exportBtn" class="btn small">ESPORTA</button>
+                <button id="importBtn" class="btn small secondary">IMPORTA</button>
+                <input type="file" id="importFile" accept=".json" style="display:none;">
+            </div>
+            
+            <input type="text" id="search-province" placeholder="Cerca provincia...">
+            
+            <div id="province-groups"></div>
+        </div>
+        
+        <div id="zoom-controls">
+            <button class="zoom-btn" id="zoom-in">+</button>
+            <button class="zoom-btn" id="zoom-out">-</button>
+        </div>
+        
+        <button id="add-note-btn">
+            <span class="note-icon">📝</span>
+            <span class="note-text">Note, click sulla mappa</span>
+        </button>
+        
+        <button id="screenshot-btn">
+            <span class="screenshot-icon">📸</span>
+            <span class="screenshot-text">Screenshot</span>
+        </button>
+        
+        <button id="show-borders-btn" title="Mostra confini">
+            <span style="font-size: 1.2rem;">👁️</span>
+        </button>        
+
+        <div id="note-editor" class="note-editor">
+            <div class="note-header">
+                <span class="note-title">Nuova Nota</span>
+                <button class="close-note">✕</button>
+            </div>
+            <textarea id="note-textarea" class="note-textarea" placeholder="Scrivi la tua nota..."></textarea>
+            <div class="emoji-buttons">
+                <button class="emoji-btn" data-emoji="🏠">🏠</button>
+                <button class="emoji-btn" data-emoji="🏢">🏢</button>
+                <button class="emoji-btn" data-emoji="🚜">🚜</button>
+                <button class="emoji-btn" data-emoji="⭐">⭐</button>
+                <button class="emoji-btn" data-emoji="💡">💡</button>
+            </div>
+            <button id="save-note" class="btn">Salva Nota</button>
+        </div>
+        
+        <div class="notification" id="notification">
+            Caricamento dati in corso...
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Verifico autenticazione utente
+        const authToken = localStorage.getItem('jwt_token');
+        const username = localStorage.getItem('username');
+
+        if (!authToken) {
+            window.location.href = 'index.html';
+        } else {
+            document.getElementById('username-display').textContent = username || 'Utente';
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('username');
+            window.location.href = 'index.html';
+        });
+
+        let isBatchProcessing = false; 
+        
+        const provinceData = {
+            "Area Piemonte": {
+                color: "#9b59b6",
+                provinces: ["Torino", "Cuneo", "Asti", "Aosta", "Imperia", "Savona", "Genova", "La Spezia"]
+            },
+            "Area Lombardia Ovest": {
+                color: "#f1c40f",
+                provinces: ["Vercelli", "Novara", "Biella", "Verbano-Cusio-Ossola", "Varese", "Como", "Sondrio", "Milano", "Lecco", "Lodi", "Monza e Brianza", "Pavia"]
+            },
+            "Area Lombardia Est": {
+                color: "#ff00ff",
+                provinces: ["Bergamo", "Brescia", "Cremona", "Mantova"]
+            },
+            "Area Trentino-Veneto Ovest": {
+                color: "#800000",
+                provinces: ["Bolzano", "Trento", "Verona", "Vicenza"]
+            },
+            "Area Veneto Est": {
+                color: "#228b22",
+                provinces: ["Belluno", "Treviso", "Padova", "Rovigo", "Venezia"]
+            },
+            "Area Friuli Venezia Giulia": {
+                color: "#3498db",
+                provinces: ["Udine", "Gorizia", "Trieste", "Pordenone", "Venezia"]
+            },
+            "Area Cispadana": {
+                color: "#00ffff",
+                provinces: ["Alessandria", "Piacenza", "Parma", "Reggio nell'Emilia", "Pavia"]
+            },
+            "Area Emilia": {
+                color: "#34495e",
+                provinces: ["Modena", "Bologna", "Mantova"]
+            },
+            "Area Romagna": {
+                color: "#d35400",
+                provinces: ["Ferrara", "Ravenna"]
+            }
+        };
+
+        const municipalityColors = [
+            "#FFFFFF", "#000000", "#FF0000", "#00FF00", "#0000FF",
+            "#FFFF00", "#FF00FF", "#00FFFF", "#FF7F00", "#8B00FF"
+        ];
+
+        var map = L.map('map', {
+            zoomControl: false,
+            minZoom: 6,
+            maxZoom: 12
+        }).setView([45.4642, 9.1900], 8);
+
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+            maxZoom: 16
+        }).addTo(map);
+
+        let provinceLayers = {};
+        let municipalityLayers = {};
+        
+        const selectedProvinces = new Map();
+        const selectedMunicipalities = new Map();
+
+        let currentMunicipalitySelection = null;
+
+        const GEOJSON_URLS = {
+            provinces: 'https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_provinces.geojson',
+            municipalities: 'https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_municipalities.geojson'
+        };
+
+        const geoJSONCache = {
+            provinces: null,
+            municipalities: null
+        };
+
+        function slugify(text) {
+            return text.toString().toLowerCase()
+                .replace(/\s+/g, '-')
+                .replace(/[^\w\-]+/g, '')
+                .replace(/\-\-+/g, '-')
+                .replace(/^-+/, '')
+                .replace(/-+$/, '');
+        }
+
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.style.display = 'block';
+        }
+
+        function hideNotification() {
+            document.getElementById('notification').style.display = 'none';
+        }
+
+        const pendingRequests = {}; 
+
+        async function loadGeoJSONData(type) {
+            if (geoJSONCache[type]) {
+                return geoJSONCache[type];
+            }
+
+            if (pendingRequests[type]) {
+                return pendingRequests[type];
+            }
+
+            const loadingPromise = (async () => {
+                try {
+                    const cached = localStorage.getItem(`geojson_${type}`);
+                    if (cached) {
+                        const data = JSON.parse(cached);
+                        geoJSONCache[type] = data;
+                        return data;
+                    }
+
+                    showNotification("Caricamento GeoJSON...");
+                    const response = await fetch(GEOJSON_URLS[type]);
+                    if (!response.ok) throw new Error(`Errore HTTP: ${response.status}`);
+                    
+                    const data = await response.json();
+                    geoJSONCache[type] = data;
+                    try {
+                        localStorage.setItem(`geojson_${type}`, JSON.stringify(data));
+                    } catch (e) {
+                        console.warn('LocalStorage pieno');
+                    }
+                    
+                    hideNotification();
+                    return data;
+                } finally {
+                    delete pendingRequests[type];
+                }
+            })();
+
+            pendingRequests[type] = loadingPromise;
+            return loadingPromise;
+        }
+
+        let showBordersTimeout = null;
+
+        function filterProvince(provincesData, provinceName) {
+            if (!provincesData || !provincesData.features) {
+                return { type: 'FeatureCollection', features: [] };
+            }
+
+            if (provinceName === 'Aosta') {
+                const aostaFeature = provincesData.features.find(feature => {
+                    const props = feature.properties;
+                    const nameField = props.prov_name || props.name || props.NAME_PROV || props.reg_name;
+                    if (!nameField) return false;
+                    const fieldValue = nameField.toString().toLowerCase();
+                    return fieldValue.includes('aosta') || fieldValue.includes('valle d'aosta') || fieldValue.includes('aoste');
+                });
+                return aostaFeature ? { type: 'FeatureCollection', features: [aostaFeature] } : { type: 'FeatureCollection', features: [] };
+            }
+
+            const provinceNameMapping = {
+                'Torino': 'Torino', 'Milano': 'Milano', 'Udine': 'Udine', 'Bologna': 'Bologna',
+                'Venezia': 'Venezia', 'Genova': 'Genova', 'Bolzano': 'Bolzano/Bozen', 'Trento': 'Trento',
+                'Monza e Brianza': 'Monza e della Brianza', 'Imperia': 'Imperia', 'Savona': 'Savona',
+                'La Spezia': 'La Spezia', 'Vercelli': 'Vercelli', 'Novara': 'Novara', 'Biella': 'Biella',
+                'Verbano-Cusio-Ossola': 'Verbano-Cusio-Ossola', 'Varese': 'Varese', 'Como': 'Como',
+                'Sondrio': 'Sondrio', 'Lecco': 'Lecco', 'Lodi': 'Lodi', 'Pavia': 'Pavia', 'Bergamo': 'Bergamo',
+                'Brescia': 'Brescia', 'Cremona': 'Cremona', 'Mantova': 'Mantova', 'Verona': 'Verona',
+                'Vicenza': 'Vicenza', 'Belluno': 'Belluno', 'Treviso': 'Treviso', 'Padova': 'Padova',
+                'Rovigo': 'Rovigo', 'Gorizia': 'Gorizia', 'Trieste': 'Trieste', 'Pordenone': 'Pordenone',
+                'Alessandria': 'Alessandria', 'Piacenza': 'Piacenza', 'Parma': 'Parma',
+                'Reggio nell'Emilia': 'Reggio nell'Emilia', 'Modena': 'Modena', 'Ferrara': 'Ferrara',
+                'Ravenna': 'Ravenna', 'Asti': 'Asti'
+            };
+
+            const targetProvince = provinceNameMapping[provinceName] || provinceName;
+            
+            const filteredFeatures = provincesData.features.filter(feature => {
+                const props = feature.properties;
+                const nameField = props.prov_name || props.name || props.NAME_PROV;
+                if (!nameField) return false;
+                return nameField.toString().toLowerCase() === targetProvince.toLowerCase();
+            });
+
+            return { type: 'FeatureCollection', features: filteredFeatures };
+        }
+
+        function filterMunicipalitiesByProvince(municipalitiesData, provinceName) {
+            if (!municipalitiesData || !municipalitiesData.features) {
+                return { type: 'FeatureCollection', features: [] };
+            }
+
+            if (provinceName === 'Aosta') {
+                const filteredFeatures = municipalitiesData.features.filter(feature => {
+                    const props = feature.properties;
+                    const regionField = props.reg_name || props.region || props.REG_ISTAT;
+                    const provinceField = props.prov_name || props.provincia || props.province;
+                    
+                    if (regionField) {
+                        const regionValue = regionField.toString().toLowerCase();
+                        return regionValue.includes('aosta') || regionValue.includes('valle d'aosta') || regionValue.includes('aoste');
+                    }
+                    
+                    if (provinceField) {
+                        const provinceValue = provinceField.toString().toLowerCase();
+                        return provinceValue.includes('aosta') || provinceValue.includes('valle d'aosta') || provinceValue.includes('aoste');
+                    }
+                    return false;
+                });
+
+                return { type: 'FeatureCollection', features: filteredFeatures };
+            }
+
+            const provinceNameMapping = {
+                'Torino': 'Torino', 'Milano': 'Milano', 'Udine': 'Udine', 'Bologna': 'Bologna',
+                'Venezia': 'Venezia', 'Genova': 'Genova', 'Bolzano': 'Bolzano/Bozen', 'Trento': 'Trento',
+                'Monza e Brianza': 'Monza e della Brianza', 'Imperia': 'Imperia', 'Savona': 'Savona',
+                'La Spezia': 'La Spezia', 'Vercelli': 'Vercelli', 'Novara': 'Novara', 'Biella': 'Biella',
+                'Verbano-Cusio-Ossola': 'Verbano-Cusio-Ossola', 'Varese': 'Varese', 'Como': 'Como',
+                'Sondrio': 'Sondrio', 'Lecco': 'Lecco', 'Lodi': 'Lodi', 'Pavia': 'Pavia', 'Bergamo': 'Bergamo',
+                'Brescia': 'Brescia', 'Cremona': 'Cremona', 'Mantova': 'Mantova', 'Verona': 'Verona',
+                'Vicenza': 'Vicenza', 'Belluno': 'Belluno', 'Treviso': 'Treviso', 'Padova': 'Padova',
+                'Rovigo': 'Rovigo', 'Gorizia': 'Gorizia', 'Trieste': 'Trieste', 'Pordenone': 'Pordenone',
+                'Alessandria': 'Alessandria', 'Piacenza': 'Piacenza', 'Parma': 'Parma',
+                'Reggio nell'Emilia': 'Reggio nell'Emilia', 'Modena': 'Modena', 'Ferrara': 'Ferrara',
+                'Ravenna': 'Ravenna', 'Asti': 'Asti'
+            };
+
+            const targetProvince = provinceNameMapping[provinceName] || provinceName;
+            
+            const filteredFeatures = municipalitiesData.features.filter(feature => {
+                const props = feature.properties;
+                const provinceField = props.prov_name || props.provincia || props.province || props.REG_ISTAT;
+                const name = props.name || props.com_name;
+                
+                if (provinceName === 'Varese') {
+                    if (name === 'Bardello con Malgesso e Bregano' || name === 'Bardello' || name === 'Malgesso' || name === 'Bregano') {
+                        return true;
+                    }
+                }
+                return provinceField && provinceField.toString().toLowerCase() === targetProvince.toLowerCase();
+            });
+
+            return { type: 'FeatureCollection', features: filteredFeatures };
+        }
+
+        function updateCurrentColorIndicator(province, color, area) {
+            const areaSlug = slugify(area);
+            const controls = document.getElementById(`mun-controls-${province}-${areaSlug}`);
+            if(!controls) return;
+            let indicator = controls.querySelector('.current-color-indicator');
+            
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.className = 'current-color-indicator';
+                controls.appendChild(indicator);
+            }
+            
+            indicator.textContent = `Colore selezionato: ${color}`;
+            indicator.style.color = color;
+        }
+
+        function generateProvinceControls() {
+            const container = document.getElementById('province-groups');
+            container.innerHTML = '';
+
+            for (const [areaName, areaData] of Object.entries(provinceData)) {
+                const areaSlug = slugify(areaName);
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'province-group';
+                
+                const groupHeader = document.createElement('div');
+                groupHeader.className = 'group-header';
+                
+                const toggleIcon = document.createElement('span');
+                toggleIcon.className = 'toggle-icon';
+                toggleIcon.textContent = '▶';
+                
+                const groupName = document.createElement('span');
+                groupName.className = 'group-name';
+                groupName.textContent = areaName;
+                
+                const colorPicker = document.createElement('div');
+                colorPicker.className = 'color-picker';
+                colorPicker.style.backgroundColor = areaData.color;
+                colorPicker.dataset.area = areaName;
+                
+                groupHeader.appendChild(toggleIcon);
+                groupHeader.appendChild(groupName);
+                groupHeader.appendChild(colorPicker);
+                
+                const provinceList = document.createElement('div');
+                provinceList.className = 'province-list';
+                provinceList.id = `list-${areaSlug}`;
+                
+                areaData.provinces.forEach(province => {
+                    const provinceItem = document.createElement('div');
+                    provinceItem.className = 'province-item';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'province-checkbox';
+                    checkbox.id = `prov-${province}-${areaSlug}`;
+                    checkbox.dataset.province = province;
+                    checkbox.dataset.area = areaName;
+                    
+                    const label = document.createElement('label');
+                    label.className = 'province-label';
+                    label.htmlFor = `prov-${province}-${areaSlug}`;
+                    label.textContent = province;
+                    
+                    const municipalityControls = document.createElement('div');
+                    municipalityControls.className = 'municipality-controls';
+                    municipalityControls.id = `mun-controls-${province}-${areaSlug}`;
+                    
+                    const colorOptions = document.createElement('div');
+                    colorOptions.className = 'municipality-color-options';
+                    
+                    municipalityColors.forEach((color, index) => {
+                        const colorOption = document.createElement('div');
+                        colorOption.className = 'municipality-color';
+                        colorOption.style.backgroundColor = color;
+                        colorOption.dataset.province = province;
+                        colorOption.dataset.area = areaName;
+                        colorOption.dataset.colorIndex = index;
+                        colorOption.dataset.color = color;
+                        colorOptions.appendChild(colorOption);
+                    });
+                    
+                    municipalityControls.appendChild(colorOptions);
+                    
+                    provinceItem.appendChild(checkbox);
+                    provinceItem.appendChild(label);
+                    provinceItem.appendChild(municipalityControls);
+                    provinceList.appendChild(provinceItem);
+                });
+                
+                groupDiv.appendChild(groupHeader);
+                groupDiv.appendChild(provinceList);
+                container.appendChild(groupDiv);
+                
+                groupHeader.addEventListener('click', function(e) {
+                    if (e.target.closest('.color-picker')) return;
+
+                    const isExpanded = provinceList.classList.contains('expanded');
+                    
+                    document.querySelectorAll('.province-list.expanded').forEach(list => {
+                        if (list !== provinceList) {
+                            list.classList.remove('expanded');
+                            const otherGroup = list.closest('.province-group');
+                            if (otherGroup) {
+                                otherGroup.querySelector('.toggle-icon').textContent = '▶';
+                            }
+                        }
+                    });
+
+                    if (isExpanded) {
+                        provinceList.classList.remove('expanded');
+                        toggleIcon.textContent = '▶';
+                    } else {
+                        provinceList.classList.add('expanded');
+                        toggleIcon.textContent = '▼';
+                    }
+                });
+                
+                colorPicker.addEventListener('click', function() {
+                    const areaName = this.dataset.area;
+                    toggleAreaSelection(areaName, this);
+                });
+            }
+            
+            document.querySelectorAll('.province-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const province = this.dataset.province;
+                    const area = this.dataset.area;
+                    const areaSlug = slugify(area);
+                    
+                    if (this.checked) {
+                        document.querySelectorAll(`.province-checkbox[data-province="${province}"]`).forEach(cb => {
+                            if (cb !== this && cb.checked) {
+                                cb.checked = false;
+                                cb.dispatchEvent(new Event('change'));
+                            }
+                        });
+
+                        selectedProvinces.set(province, area);
+                        document.getElementById(`mun-controls-${province}-${areaSlug}`).classList.add('expanded');
+                        loadProvinceData(province, area);
+                    } else {
+                        selectedProvinces.delete(province);
+                        document.getElementById(`mun-controls-${province}-${areaSlug}`).classList.remove('expanded');
+                        removeProvinceData(province);
+                    }
+                    saveState();
+                });
+            });
+            
+            document.querySelectorAll('.municipality-color').forEach(colorOption => {
+                colorOption.addEventListener('click', function() {
+                    const province = this.dataset.province;
+                    const area = this.dataset.area;
+                    const areaSlug = slugify(area);
+                    const color = this.dataset.color;
+                    
+                    const controls = document.getElementById(`mun-controls-${province}-${areaSlug}`);
+                    controls.querySelectorAll('.municipality-color').forEach(el => {
+                        el.classList.remove('active');
+                    });
+                    
+                    this.classList.add('active');
+                    
+                    const cb = document.getElementById(`prov-${province}-${areaSlug}`);
+                    if (!cb.checked) {
+                        cb.click();
+                    }
+                    
+                    setMunicipalitySelectionMode(province, color);
+                    updateCurrentColorIndicator(province, color, area);
+                    saveState();
+                });
+            });
+            
+            document.getElementById('search-province').addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                
+                document.querySelectorAll('.province-item').forEach(item => {
+                    const label = item.querySelector('.province-label');
+                    const provinceName = label.textContent.toLowerCase();
+                    
+                    if (provinceName.includes(searchTerm)) {
+                        item.style.display = 'flex';
+                        const group = item.closest('.province-group');
+                        const provinceList = group.querySelector('.province-list');
+                        const toggleIcon = group.querySelector('.toggle-icon');
+                        
+                        if (!provinceList.classList.contains('expanded')) {
+                            provinceList.classList.add('expanded');
+                            toggleIcon.textContent = '▼';
+                        }
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+            
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        async function loadProvinceData(provinceName, areaName) {
+            showNotification(`Caricamento comuni...`);
+            
+            try {
+                const areaColor = provinceData[areaName].color;
+                
+                const provincesData = await loadGeoJSONData('provinces');
+                const provinceGeoJSON = filterProvince(provincesData, provinceName);
+                
+                if (provinceGeoJSON.features.length === 0) {
+                    throw new Error(`Provincia ${provinceName} non trovata nei dati`);
+                }
+                
+                const provinceLayer = L.geoJSON(provinceGeoJSON, {
+                    style: {
+                        fillColor: areaColor,
+                        color: areaColor,
+                        weight: 3,
+                        opacity: 1,
+                        fillOpacity: 0.5
+                    }
+                }).addTo(map);
+                
+                provinceLayer.bindTooltip(`<b>${provinceName}</b><br>Area: ${areaName}`, {
+                    permanent: false,
+                    direction: 'center',
+                    className: 'province-tooltip'
+                });
+
+                provinceLayers[provinceName] = provinceLayer;
+                
+                const municipalitiesData = await loadGeoJSONData('municipalities');
+                const municipalitiesGeoJSON = filterMunicipalitiesByProvince(municipalitiesData, provinceName);
+                
+                if (municipalitiesGeoJSON.features.length > 0) {
+                    createMunicipalityLayers(provinceName, municipalitiesGeoJSON);
+                } else {
+                    showNotification(`Nessun comune trovato per ${provinceName}`);
+                    setTimeout(hideNotification, 2000);
+                }
+                
+                if (!isBatchProcessing) {
+                    map.fitBounds(provinceLayer.getBounds());
+                }
+                hideNotification();
+            } catch (error) {
+                setTimeout(hideNotification, 3000);
+            }
+        }
+
+        function createMunicipalityLayers(provinceName, geoJSON) {
+            municipalityLayers[provinceName] = [];
+            
+            const municipalityLayer = L.geoJSON(geoJSON, {
+                style: {
+                    color: '#333',
+                    weight: 1,
+                    fillOpacity: 0,
+                    fillColor: '#ffffff'
+                },
+                onEachFeature: function(feature, layer) {
+                    const props = feature.properties;
+                    const municipalityName = props.com_name || props.name || 'Comune';
+                    
+                    layer.bindTooltip(municipalityName, {
+                        permanent: false,
+                        direction: 'center',
+                        className: 'municipality-name'
+                    });
+
+                    if (selectedMunicipalities.has(municipalityName)) {
+                        const savedColor = selectedMunicipalities.get(municipalityName);
+                        layer.setStyle({ 
+                            fillOpacity: 0.7, 
+                            fillColor: savedColor,
+                            weight: 2
+                        });
+                    }
+                    
+                    layer.on('mouseover', function(e) {
+                        this.setStyle({ 
+                            fillOpacity: 0.3, 
+                            fillColor: '#3498db',
+                            weight: 2
+                        });
+                    });
+                    
+                    layer.on('mouseout', function(e) {
+                        const isSelected = selectedMunicipalities.has(municipalityName);
+                        if (isSelected) {
+                            const color = selectedMunicipalities.get(municipalityName);
+                            this.setStyle({ 
+                                fillOpacity: 0.7, 
+                                fillColor: color,
+                                weight: 2
+                            });
+                        } else {
+                            this.setStyle({ 
+                                fillOpacity: 0, 
+                                weight: 1
+                            });
+                        }
+                    });
+                    
+                    layer.on('click', function(e) {
+                        if (currentMunicipalitySelection && currentMunicipalitySelection.province === provinceName) {
+                            const color = currentMunicipalitySelection.color;
+                            
+                            if (selectedMunicipalities.has(municipalityName)) {
+                                selectedMunicipalities.delete(municipalityName);
+                                this.setStyle({ 
+                                    fillOpacity: 0, 
+                                    weight: 1
+                                });
+                            } else {
+                                selectedMunicipalities.set(municipalityName, color);
+                                this.setStyle({ 
+                                    fillOpacity: 0.7, 
+                                    fillColor: color,
+                                    weight: 2
+                                });
+                            }
+                            saveState();
+                        }
+                    });
+                    
+                    municipalityLayers[provinceName].push(layer);
+                }
+            }).addTo(map);
+        }
+        
+        function removeProvinceData(provinceName) {
+            if (provinceLayers[provinceName]) {
+                map.removeLayer(provinceLayers[provinceName]);
+                delete provinceLayers[provinceName];
+            }
+            
+            if (municipalityLayers[provinceName]) {
+                municipalityLayers[provinceName].forEach(layer => {
+                    map.removeLayer(layer);
+                });
+                delete municipalityLayers[provinceName];
+            }
+            
+            for (const [municipality, province] of selectedMunicipalities.entries()) {
+                if (province === provinceName) {
+                    selectedMunicipalities.delete(municipality);
+                }
+            }
+        }
+
+        function setMunicipalitySelectionMode(province, color) {
+            currentMunicipalitySelection = { province, color };
+            map.getContainer().style.cursor = 'crosshair';
+            showNotification(`Modalità selezione comuni attiva per ${province}. Clicca sui comuni per colorarli.`);
+            setTimeout(hideNotification, 2000);
+        }
+
+        function toggleAreaSelection(areaName, colorPicker) {
+            const areaData = provinceData[areaName];
+            const areaSlug = slugify(areaName);
+            const isSelected = colorPicker.classList.contains('active');
+            
+            if (isSelected) {
+                colorPicker.classList.remove('active');
+                areaData.provinces.forEach(province => {
+                    const cb = document.getElementById(`prov-${province}-${areaSlug}`);
+                    if (cb && cb.checked) {
+                        cb.click();
+                    }
+                });
+            } else {
+                colorPicker.classList.add('active');
+                areaData.provinces.forEach(province => {
+                    const cb = document.getElementById(`prov-${province}-${areaSlug}`);
+                    if (cb && !cb.checked) {
+                        cb.click();
+                    }
+                });
+            }
+        }
+
+        generateProvinceControls();
+
+        document.getElementById('zoom-in').addEventListener('click', function() { map.zoomIn(); });
+        document.getElementById('zoom-out').addEventListener('click', function() { map.zoomOut(); });
+        map.doubleClickZoom.enable();
+
+        document.getElementById('close-controls').addEventListener('click', function() {
+            document.getElementById('controls').classList.add('collapsed');
+            document.getElementById('toggle-controls').style.display = 'flex';
+        });
+        
+        document.getElementById('toggle-controls').addEventListener('click', function() {
+            document.getElementById('controls').classList.remove('collapsed');
+            this.style.display = 'none';
+        });
+
+        function clearAllSelections() {
+            if (showBordersTimeout) {
+                clearTimeout(showBordersTimeout);
+                showBordersTimeout = null;
+            }
+
+            document.querySelectorAll('.province-checkbox:checked').forEach(cb => {
+                cb.click(); 
+            });
+            
+            Object.keys(municipalityLayers).forEach(prov => {
+                if (municipalityLayers[prov]) {
+                    municipalityLayers[prov].forEach(layer => map.removeLayer(layer));
+                }
+            });
+            municipalityLayers = {}; 
+            
+            selectedProvinces.clear();
+            selectedMunicipalities.clear();
+            
+            mapNotes.forEach(note => {
+                if (note.element && note.element.parentNode) {
+                    note.element.parentNode.removeChild(note.element);
+                }
+            });
+            mapNotes.length = 0;
+            
+            map.setView([45.4642, 9.1900], 8);
+            document.querySelectorAll('.color-picker.active').forEach(cp => cp.classList.remove('active'));
+        }
+
+        function exportData() {
+            const exportJSON = {
+                provinces: Array.from(selectedProvinces.entries()), 
+                municipalities: Object.fromEntries(selectedMunicipalities.entries()),
+                notes: mapNotes.map(note => ({
+                    latlng: { lat: note.latlng.lat, lng: note.latlng.lng },
+                    content: note.content
+                }))
+            };
+
+            const blob = new Blob([JSON.stringify(exportJSON, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "mappa_selezioni.json";
+            link.click();
+        }
+
+        async function importData(jsonData) {
+            const proceed = confirm("Vuoi importare il file selezionato?\n\nOK = Importa (unisci ai dati attuali)\nANNULLA = Non importare");
+            if (!proceed) return;
+
+            if (jsonData.provinces) {
+                for (const item of jsonData.provinces) {
+                    const prov = Array.isArray(item) ? item[0] : item;
+                    const area = Array.isArray(item) ? item[1] : null;
+                    
+                    let checkbox;
+                    if (area) {
+                        checkbox = document.getElementById(`prov-${prov}-${slugify(area)}`);
+                    } else {
+                        checkbox = document.querySelector(`.province-checkbox[data-province="${prov}"]`);
+                    }
+                    if (checkbox && !checkbox.checked) checkbox.click();
+                }
+            }
+
+            if (jsonData.municipalities) {
+                const municipalities = Array.isArray(jsonData.municipalities) 
+                    ? jsonData.municipalities 
+                    : Object.entries(jsonData.municipalities);
+
+                for (const [munName, color] of municipalities) {
+                    selectedMunicipalities.set(munName, color);
+                    for (const prov in municipalityLayers) {
+                        if (municipalityLayers[prov]) {
+                            municipalityLayers[prov].forEach(layer => {
+                                const props = layer.feature.properties;
+                                const name = props.com_name || props.name;
+                                if (name === munName) {
+                                    layer.setStyle({ fillColor: color, fillOpacity: 0.7, weight: 2 });
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (jsonData.notes) {
+                jsonData.notes.forEach(noteData => {
+                    const noteExists = mapNotes.some(note => 
+                        note.latlng.lat === noteData.latlng.lat && 
+                        note.latlng.lng === noteData.latlng.lng &&
+                        note.content === noteData.content
+                    );
+                    if (!noteExists) {
+                        const latlng = L.latLng(noteData.latlng.lat, noteData.latlng.lng);
+                        createMapNote(latlng, noteData.content);
+                    }
+                });
+            }
+
+            showNotification("Importazione completata");
+            setTimeout(hideNotification, 2000);
+            saveState();
+        }
+
+        // SALVATAGGIO AUTOMATICO SU DB SQL SERVER
+        async function saveState() {
+            const state = {
+                provinces: Array.from(selectedProvinces.entries()),
+                municipalities: Array.from(selectedMunicipalities.entries()),
+                notes: mapNotes.map(note => ({
+                    latlng: { lat: note.latlng.lat, lng: note.latlng.lng },
+                    content: note.content
+                }))
+            };
+
+            try {
+                await fetch('/api/map-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ mapData: state })
+                });
+            } catch (e) {
+                console.warn('Errore di salvataggio automatico sul DB:', e);
+            }
+        }
+
+        // CARICAMENTO AUTOMATICO DA DB SQL SERVER ALL'ACCESSO
+        async function loadState() {
+            isBatchProcessing = true;
+            try {
+                const response = await fetch('/api/map-data', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        localStorage.removeItem('jwt_token');
+                        window.location.href = 'index.html';
+                        return;
+                    }
+                }
+
+                const data = await response.json();
+                if (!data || !data.map_json) {
+                    isBatchProcessing = false;
+                    return;
+                }
+
+                const state = data.map_json;
+
+                if (Array.isArray(state.provinces)) {
+                    state.provinces.forEach(item => {
+                        let prov, area;
+                        if (Array.isArray(item)) {
+                            [prov, area] = item;
+                        } else {
+                            prov = item;
+                            const selector = `.province-checkbox[data-province="${prov}"]`;
+                            const cb = document.querySelector(selector);
+                            if (cb) area = cb.dataset.area;
+                        }
+
+                        if (prov && area) {
+                            const slug = slugify(area);
+                            const cb = document.getElementById(`prov-${prov}-${slug}`);
+                            if (cb && !cb.checked) cb.click();
+                        }
+                    });
+                }
+
+                if (Array.isArray(state.municipalities)) {
+                    state.municipalities.forEach(([munName, color]) => {
+                        selectedMunicipalities.set(munName, color);
+                    });
+                }
+
+                if (state.notes) {
+                    state.notes.forEach(noteData => {
+                        const latlng = L.latLng(noteData.latlng.lat, noteData.latlng.lng);
+                        createMapNote(latlng, noteData.content);
+                    });
+                }
+
+            } catch (e) {
+                console.error('Errore durante il caricamento dello stato dal server:', e);
+            } finally {
+                isBatchProcessing = false;
+            }
+        }
+
+        document.getElementById("clearAll").addEventListener("click", () => {
+            clearAllSelections();
+            saveState();
+        });
+        document.getElementById("exportBtn").addEventListener("click", exportData);
+
+        document.getElementById("importBtn").addEventListener("click", () => {
+            document.getElementById("importFile").click();
+        });
+
+        document.getElementById("importFile").addEventListener("change", function(){
+            const file = this.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    importData(JSON.parse(e.target.result));
+                } catch (err) {
+                    showNotification("Errore nel file JSON");
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        document.getElementById('show-borders-btn').addEventListener('click', function() {
+            if (showBordersTimeout) clearTimeout(showBordersTimeout);
+
+            Object.entries(provinceLayers).forEach(([name, layer]) => {
+                layer.setStyle({
+                    weight: 6,
+                    opacity: 1,
+                    color: '#000000', 
+                    fillOpacity: 0.1 
+                });
+            });
+            
+            showBordersTimeout = setTimeout(() => {
+                Object.entries(provinceLayers).forEach(([name, layer]) => {
+                    if (!map.hasLayer(layer)) return;
+
+                    let areaColor = '#3388ff';
+                    const area = selectedProvinces.get(name);
+                    if (area && provinceData[area]) {
+                        areaColor = provinceData[area].color;
+                    }
+                    
+                    layer.setStyle({
+                        weight: 3,
+                        opacity: 1,
+                        color: areaColor,
+                        fillOpacity: 0.5
+                    });
+                });
+                showBordersTimeout = null;
+            }, 2000);
+        });
+
+        let noteModeActive = false;
+        let currentNotePosition = null;
+        const mapNotes = [];
+
+        document.getElementById('add-note-btn').addEventListener('click', function() {
+            noteModeActive = !noteModeActive;
+            
+            if (noteModeActive) {
+                this.style.background = '#3498db';
+                this.style.color = 'white';
+                map.getContainer().style.cursor = 'crosshair';
+            } else {
+                this.style.background = 'white';
+                this.style.color = '#2c3e50';
+                map.getContainer().style.cursor = '';
+                hideNotification();
+            }
+        });
+
+        map.on('click', function(e) {
+            if (noteModeActive) {
+                currentNotePosition = e.latlng;
+                showNoteEditor(e.latlng);
+                noteModeActive = false;
+                document.getElementById('add-note-btn').style.background = 'white';
+                document.getElementById('add-note-btn').style.color = '#2c3e50';
+                map.getContainer().style.cursor = '';
+            }
+        });
+
+        function showNoteEditor(latlng) {
+            const editor = document.getElementById('note-editor');
+            editor.style.display = 'block';
+            
+            const point = map.latLngToContainerPoint(latlng);
+            editor.style.left = (point.x + 10) + 'px';
+            editor.style.top = (point.y + 10) + 'px';
+            
+            document.getElementById('note-textarea').value = '';
+        }
+
+        document.querySelector('#note-editor .close-note').addEventListener('click', function() {
+            document.getElementById('note-editor').style.display = 'none';
+            currentNotePosition = null;
+        });
+
+        document.querySelectorAll('.emoji-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const textarea = document.getElementById('note-textarea');
+                const emoji = this.dataset.emoji;
+                textarea.value += emoji + ' ';
+                textarea.focus();
+            });
+        });
+
+        document.getElementById('save-note').addEventListener('click', function() {
+            const content = document.getElementById('note-textarea').value.trim();
+            
+            if (content && currentNotePosition) {
+                createMapNote(currentNotePosition, content);
+                document.getElementById('note-editor').style.display = 'none';
+                currentNotePosition = null;
+                saveState();
+            }
+        });
+
+        function createMapNote(latlng, content) {
+            const noteId = 'note-' + Date.now();
+            const noteElement = document.createElement('div');
+            noteElement.className = 'note-final';
+            noteElement.id = noteId;
+            noteElement.innerHTML = `
+                <button class="close-note">✕</button>
+                <div class="note-content">${content}</div>
+            `;
+            
+            document.getElementById('map-container').appendChild(noteElement);
+            updateNotePosition(noteElement, latlng);
+            makeNoteDraggable(noteElement, latlng);
+            
+            mapNotes.push({
+                id: noteId,
+                latlng: latlng,
+                content: content,
+                element: noteElement
+            });
+            
+            noteElement.querySelector('.close-note').addEventListener('click', function() {
+                removeMapNote(noteId);
+                saveState();
+            });
+        }
+
+        function updateNotePosition(noteElement, latlng) {
+            const point = map.latLngToContainerPoint(latlng);
+            noteElement.style.left = (point.x - noteElement.offsetWidth / 2) + 'px';
+            noteElement.style.top = (point.y - noteElement.offsetHeight / 2) + 'px';
+        }
+
+        function makeNoteDraggable(noteElement, initialLatLng) {
+            let isDragging = false;
+            let startX, startY, initialLeft, initialTop;
+            
+            noteElement.addEventListener('mousedown', startDrag);
+            noteElement.addEventListener('touchstart', startDrag, { passive: false });
+            
+            function startDrag(e) {
+                if (e.target.classList.contains('close-note')) return;
+                
+                isDragging = true;
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+                
+                startX = clientX;
+                startY = clientY;
+                
+                const rect = noteElement.getBoundingClientRect();
+                initialLeft = rect.left;
+                initialTop = rect.top;
+                
+                noteElement.style.cursor = 'grabbing';
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('mouseup', stopDrag);
+                document.addEventListener('touchmove', drag, { passive: false });
+                document.addEventListener('touchend', stopDrag);
+                
+                if (!e.type.includes('touch')) e.preventDefault();
+            }
+            
+            function drag(e) {
+                if (!isDragging) return;
+                if (e.type.includes('touch')) e.preventDefault();
+                
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+                
+                const deltaX = clientX - startX;
+                const deltaY = clientY - startY;
+                
+                noteElement.style.left = (initialLeft + deltaX) + 'px';
+                noteElement.style.top = (initialTop + deltaY) + 'px';
+            }
+            
+            function stopDrag() {
+                isDragging = false;
+                noteElement.style.cursor = 'move';
+                document.removeEventListener('mousemove', drag);
+                document.removeEventListener('mouseup', stopDrag);
+                document.removeEventListener('touchmove', drag);
+                document.removeEventListener('touchend', stopDrag);
+                
+                const rect = noteElement.getBoundingClientRect();
+                const containerPoint = L.point(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                const newLatLng = map.containerPointToLatLng(containerPoint);
+                
+                const note = mapNotes.find(n => n.element === noteElement);
+                if (note) {
+                    note.latlng = newLatLng;
+                }
+                saveState();
+            }
+        }
+
+        function removeMapNote(noteId) {
+            const noteIndex = mapNotes.findIndex(n => n.id === noteId);
+            if (noteIndex !== -1) {
+                const noteElement = mapNotes[noteIndex].element;
+                if (noteElement && noteElement.parentNode) {
+                    noteElement.parentNode.removeChild(noteElement);
+                }
+                mapNotes.splice(noteIndex, 1);
+            }
+        }
+
+        map.on('moveend', function() {
+            mapNotes.forEach(note => {
+                updateNotePosition(note.element, note.latlng);
+            });
+        });
+
+        function takeScreenshot() {
+            window.print();
+        }
+
+        document.getElementById("screenshot-btn").addEventListener("click", takeScreenshot);
+
+        // Carica lo stato iniziale dal DB SQL
+        loadState();
+    </script>
+</body>
+</html>
