@@ -1,17 +1,19 @@
-const cors = require('cors');
-app.use(cors());
 const express = require('express');
+const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const SECRET_KEY = "chiave_segreta_super_sicura_mappe_2026";
 
+// Ora che 'app' esiste, possiamo usare i middleware
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+const PORT = process.env.PORT || 3000;
+const SECRET_KEY = "chiave_segreta_super_sicura_mappe_2026";
 
 // Inizializzazione Database SQLite
 const db = new sqlite3.Database('./database.sqlite', (err) => {
